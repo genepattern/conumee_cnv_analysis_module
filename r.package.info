@@ -1,0 +1,8 @@
+package,requested_version,archive_name,src_URL,Mac_URL,Windows_URL
+optparse
+conumee
+foreach
+doParallel
+parallel
+biomart
+IlluminaHumanMethylationEPICanno.ilm10b3.hg19
