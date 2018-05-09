@@ -5,4 +5,3 @@ foreach
 doParallel
 parallel
 biomart
-IlluminaHumanMethylationEPICanno.ilm10b3.hg19

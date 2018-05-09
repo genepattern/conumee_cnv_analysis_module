@@ -115,12 +115,13 @@ if (tolower(args$xy) == "yes") {
 }
 
 # Exclude highly polymorphic regions of genome
-if (is.null(args$excludefile) || args$excludefile == "") {
+if (is.null(args$excludefile) || args$excludefile == "None") {
   exclude_regions <- NULL
-} else if (args$excludefile == "default") {
+} else if (endsWith(args$excludefile, "highly polymorphic regions")) {
   data(exclude_regions)
 } else {
-  exclude_regions <- import(args$excludefile, format = "BED")
+  write("Exclude regions parameter not recognized.", stdout())
+  stop()
 }
 
 # Create annotation object. Set to look at probes common to both 850k and 450k.
@@ -178,7 +179,9 @@ cnv.analyze.plot <- function(sample, controls.names, cnv.data, anno) {
 # Analyze in parallel
 write(paste("Using ", numCores, " cores...", sep = ""), stdout())
 foreach(sample = all_samples, .packages = c("conumee")) %dopar% {
-  cnv.analyze.plot(sample, controls.names, cnv.data, anno)
+  if (!(sample %in% controls.names)) {
+    cnv.analyze.plot(sample, controls.names, cnv.data, anno)
+  }
 }
 
 write("Done.", stdout())

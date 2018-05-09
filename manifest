@@ -1,15 +1,15 @@
-#MethylationCNVAnalysis
+#ConumeeCNVAnalysis
 #Fri May 04 19:21:03 UTC 2018
 JVMLevel=
 LSID=urn\:lsid\:broad.mit.edu\:cancer.software.genepattern.module.analysis\:00375\:999999999
 author=Clarence Mah;Mesirov Lab
 categories=Methylation;CNV\ Analysis
-commandLine=\ --xy<sex.chromosomes>-data <sample.data>  --controls <control.sample.names> --controlsdata <control.samples.data> --arraytype <array.type>  --genesfile <genes.to.highlight> --excludefile <exclude.regions>
+commandLine=<R3.2_Rscript> <libdir>run.R --xy <sex.chromosomes> --data <sample.data>  --controls <control.sample.names> --controlsdata <control.samples.data> --arraytype <array.type>  --genesfile <genes.to.highlight> --excludefile <exclude.regions>
 cpuType=any
-description=Perform copy-number variation analysis using data generated from Illumina 450k or EPIC DNA methylation arrays. This module is meant to be used in conjunction with output generated from the "MethylationPreprocessing" module.
+description=Perform copy-number variation analysis using data generated from Illumina 450k or EPIC DNA methylation arrays. This module is meant to be used in conjunction with output generated from the "MinfiPreprocessing" module.
 fileFormat=pdf;seg
 language=R
-name=MethylationCNVAnalysis
+name=ConumeeCNVAnalysis
 os=any
 job.docker.image=genepattern/docker-r-3-4-MethylationAnalysis
 p1_MODE=IN
@@ -79,8 +79,8 @@ p5_type=java.io.File
 p5_value=
 p6_MODE=IN
 p6_TYPE=FILE
-p6_choices=default\=highly polymorphic regions;\=None
-p6_default_value=default
+p6_choices=ftp://gpftp.broadinstitute.org/methylation/exclude_regions.bed\=highly polymorphic regions;\=None
+p6_default_value=exclude_regions.bed
 p6_description=A bed file specifying genomic regions to exclude from copy number analysis (hg19). Defaults to "highly polymorphic regions".
 p6_fileFormat=bed
 p6_flag=--excludefile
@@ -106,7 +106,7 @@ p7_type=java.lang.String
 p7_value=Yes\=Yes;No\=No
 privacy=private
 quality=development
-taskDoc=
+taskDoc=http\://software.broadinstitute.org/cancer/software/genepattern/modules/docs/MinfiPreprocessing/1
 taskType=Methylation
 userid=ckmah
 version=
