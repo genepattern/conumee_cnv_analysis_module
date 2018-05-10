@@ -174,6 +174,9 @@ cnv.analyze.plot <- function(sample, controls.names, cnv.data, anno) {
 
   # Export seg file
   CNV.write(cnv.analysis, what = "segments", file = paste(sample, ".cnv.seg", sep = ""))
+
+  # Export details file
+  CNV.write(cnv.analysis, what = "detail", file = paste(sample, ".detail.cnv.seg", sep = ""))
 }
 
 # Analyze in parallel
