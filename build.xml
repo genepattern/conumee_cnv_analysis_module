@@ -77,7 +77,7 @@
 
     <target name="create-zip" depends="addLSIDtoManifest">
         <zip destfile="${dest.dir}/${ant.project.name}.zip" whenempty="fail" defaultexcludes="true">
-            <fileset dir="." includes="*.html, *.py, *.json, manifest, *.txt, *.R, *.foo"/>
+            <fileset dir="." includes="*.html, *.py, *.json, manifest, *.R, *.foo"/>
         </zip>
     </target>
 

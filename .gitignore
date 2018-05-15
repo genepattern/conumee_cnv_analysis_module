@@ -1,5 +1,6 @@
 build/*
 test.sh
+exclude_regions.bed
 
 *.pdf
 *.txt
