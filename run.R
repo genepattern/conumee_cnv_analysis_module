@@ -1,6 +1,7 @@
 write("Loading dependencies...", stdout())
 suppressMessages(suppressWarnings(library("optparse")))
 suppressMessages(suppressWarnings(library("conumee")))
+suppressMessages(suppressWarnings(library("rtracklayer")))
 suppressMessages(suppressWarnings(library("foreach")))
 suppressMessages(suppressWarnings(library("doParallel")))
 suppressMessages(suppressWarnings(library("parallel")))
@@ -13,7 +14,7 @@ parser <- add_option(parser, c("--controls"), help = "names of control samples")
 parser <- add_option(parser, c("--controlsdata"), help = "controls methylation data")
 parser <- add_option(parser, c("--arraytype"), help = "450k, EPIC, or both")
 parser <- add_option(parser, c("--genesfile"), help = "file with list of genes to highlight")
-parser <- add_option(parser, c("--excludefile"), help = "bed file of regions to exclude")
+parser <- add_option(parser, c("--ignorefile"), help = "bed file of regions to exclude")
 parser <- add_option(parser, c("--xy"), help = "include XY chromosomes")
 args <- parse_args(parser)
 
@@ -25,6 +26,8 @@ if (class(all.data) != "MethylSet") {
   write("Data class is not a MethylSet.", stdout())
   stop()
 }
+
+# colData(all.data)$Sample_Name <- rownames(colData(all.data))
 
 # Array type parameters
 if (args$arraytype == "450k") {
@@ -39,7 +42,7 @@ if (args$arraytype == "450k") {
 }
 
 # Control sample names
-if (length(args$controls) > 0) {
+if (tolower(args$controls) != "none") {
   write("Using subset as controls...", stdout())
   controls.names <- strsplit(args$controls, ",")
   controls.names <- lapply(controls.names, trimws)
@@ -50,7 +53,7 @@ if (length(args$controls) > 0) {
     controls.names <- c(controls.names, controls.names)
   }
 
-  if (!all(controls.names %in% colData(all.data)$Sample_Name)) {
+  if (!all(controls.names %in% colnames(all.data))) {
     write("One or more of the provided names of control samples are not in the dataset.",
       stdout())
     stop()
@@ -64,8 +67,21 @@ if (length(args$controls) > 0) {
   # Load control data
   write("Loading separate controls data...", stdout())
   controls.data <- readRDS(args$controlsdata)
+  controls.names <- colnames(controls.data)
 
-  if (arraytype == "450k" || "overlap") {
+  # Clean up missing colData columns in control dataset
+  # colData(controls.data)$Sample_Name <- rownames(colData(controls.data))
+
+  # for (c in colnames(colData(all.data))) {
+  #     if (!(c %in% colnames(colData(controls.data)))) {
+  #         colData(controls.data)$new <- as.character(NA)
+  #         colData(controls.data) <- rename(colData(controls.data), c("new"=c))
+  #     }
+  # }
+  #
+  # print(colData(all.data))
+  # print(colData(controls.data))
+  if (arraytype == "450k" || arraytype == "overlap") {
     all.data <- combineArrays(all.data, controls.data, outType = "IlluminaHumanMethylation450k")
   } else {
     all.data <- combineArrays(all.data, controls.data, outType = "IlluminaHumanMethylationEPIC")
@@ -77,34 +93,34 @@ write("Querying biomaRt for gene locations...", stdout())
 if (is.null(args$genesfile) || args$genesfile == "") {
   detail_regions <- NULL
 } else {
-  if (args$genesfile == "default") {
-    data(detail_regions)
-  } else {
-    gene.list <- read.table(args$genesfile, header = FALSE)
-    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl", host = "grch37.ensembl.org")
-    detail_regions <- getBM(attributes = c("hgnc_symbol", "chromosome_name",
-      "start_position", "end_position", "strand"), filter = "hgnc_symbol",
-      values = gene.list, mart = ensembl)
+  gene.list <- read.table(args$genesfile, header = FALSE)
+  ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl", host = "grch37.ensembl.org")
+  detail_regions <- getBM(attributes = c("hgnc_symbol", "chromosome_name", "start_position",
+    "end_position", "strand"), filter = "hgnc_symbol", values = gene.list, mart = ensembl)
 
-    # Include 5kb upstream for promoter region
-    for (i in 1:dim(detail_regions)[1]) {
-      entry <- detail_regions[i, ]
-      if (entry$strand == 1) {
-        entry$start_position <- entry$start_position - 5000
-      } else {
-        entry$end_position <- entry$end_position + 5000
-      }
+  valid_regions <- detail_regions$chromosome_name %in% seq(1, 22)
+  detail_regions <- detail_regions[valid_regions, ]
+
+  # Include 5kb upstream for promoter region
+  for (i in 1:dim(detail_regions)[1]) {
+    entry <- detail_regions[i, ]
+    if (entry$strand == 1) {
+      entry$start_position <- entry$start_position - 5000
+    } else {
+      entry$end_position <- entry$end_position + 5000
     }
-
-    # Convert to GRange object
-    detail_regions$strand[detail_regions$strand == 1] <- "+"
-    detail_regions$strand[detail_regions$strand == -1] <- "-"
-    detail_regions <- makeGRangesFromDataFrame(detail_regions, seqnames = "hgnc_symbol",
-      start.field = "start_position", end.field = "end_position", strand.field = "strand",
-      keep.extra.columns = TRUE)
-    detail_regions$name <- detail_regions$hgnc_symbol
-    detail_regions$hgnc_symbol <- NULL
   }
+
+  # Convert to GRange object
+  detail_regions$strand[detail_regions$strand == 1] <- "+"
+  detail_regions$strand[detail_regions$strand == -1] <- "-"
+  detail_regions$chromosome_name <- paste("chr", detail_regions$chromosome_name,
+    sep = "")
+  detail_regions <- makeGRangesFromDataFrame(detail_regions, seqnames = "chromosome_name",
+    start.field = "start_position", end.field = "end_position", strand.field = "strand",
+    keep.extra.columns = TRUE)
+  detail_regions$name <- detail_regions$hgnc_symbol
+  detail_regions$hgnc_symbol <- NULL
 }
 
 # Include/exclude sex chromosomes
@@ -114,19 +130,20 @@ if (tolower(args$xy) == "yes") {
   xy <- FALSE
 }
 
-# Exclude highly polymorphic regions of genome
-if (is.null(args$excludefile) || args$excludefile == "None") {
-  exclude_regions <- NULL
-} else if (endsWith(args$excludefile, "highly polymorphic regions")) {
-  data(exclude_regions)
+# Ignore highly polymorphic regions of genome
+if (endsWith(tolower(args$ignorefile), "none")) {
+  ignore_regions <- NULL
+} else if (endsWith(args$ignorefile, ".bed")) {
+  ignore_regions <- args$ignorefile
 } else {
-  write("Exclude regions parameter not recognized.", stdout())
+  write(paste("Ignore regions value, '", args$ignorefile, "' not recognized.",
+    sep = ""), stdout())
   stop()
 }
 
 # Create annotation object. Set to look at probes common to both 850k and 450k.
 write("Creating CNV annotation object...", stdout())
-anno <- CNV.create_anno(array_type = arraytype, exclude_regions = exclude_regions,
+anno <- CNV.create_anno(array_type = arraytype, exclude_regions = ignore_regions,
   detail_regions = detail_regions, chrXY = xy, bin_minprobes = 15, bin_minsize = 50000,
   bin_maxsize = 5e+06)
 
@@ -138,7 +155,7 @@ cnv.data <- CNV.load(all.data)
 
 # parallelization parameters TODO use max cores
 all_samples <- colnames(cnv.data@intensity)
-numCores <- min(length(all_samples), detectCores() - 2)
+numCores <- min(length(all_samples) - length(controls.names), detectCores() - 2)
 cl <- makeCluster(numCores)
 registerDoParallel(cl)
 
@@ -176,7 +193,8 @@ cnv.analyze.plot <- function(sample, controls.names, cnv.data, anno) {
   CNV.write(cnv.analysis, what = "segments", file = paste(sample, ".cnv.seg", sep = ""))
 
   # Export details file
-  CNV.write(cnv.analysis, what = "detail", file = paste(sample, ".detail.cnv.seg", sep = ""))
+  CNV.write(cnv.analysis, what = "detail", file = paste(sample, ".detail.cnv.seg",
+    sep = ""))
 }
 
 # Analyze in parallel

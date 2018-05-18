@@ -1,7 +1,9 @@
 build/*
 test.sh
-exclude_regions.bed
+ignore_regions.bed
 
+data
+*.seg
 *.pdf
 *.txt
 *.rds
