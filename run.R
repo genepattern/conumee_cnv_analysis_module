@@ -90,7 +90,7 @@ if (tolower(args$controls) != "none") {
 
 # Query biomart for gene annotations
 write("Querying biomaRt for gene locations...", stdout())
-if (is.null(args$genesfile) || args$genesfile == "") {
+if (!("genesfile" %in% args)) {
   detail_regions <- NULL
 } else {
   gene.list <- read.table(args$genesfile, header = FALSE)
@@ -131,7 +131,7 @@ if (tolower(args$xy) == "yes") {
 }
 
 # Ignore highly polymorphic regions of genome
-if (endsWith(tolower(args$ignorefile), "none")) {
+if (!("ignorefile" %in% args)) {
   ignore_regions <- NULL
 } else if (endsWith(args$ignorefile, ".bed")) {
   ignore_regions <- args$ignorefile
