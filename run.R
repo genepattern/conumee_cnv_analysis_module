@@ -27,8 +27,6 @@ if (class(all.data) != "MethylSet") {
   stop()
 }
 
-# colData(all.data)$Sample_Name <- rownames(colData(all.data))
-
 # Array type parameters
 if (args$arraytype == "450k") {
   arraytype <- "450k"
@@ -69,18 +67,6 @@ if (tolower(args$controls) != "none") {
   controls.data <- readRDS(args$controlsdata)
   controls.names <- colnames(controls.data)
 
-  # Clean up missing colData columns in control dataset
-  # colData(controls.data)$Sample_Name <- rownames(colData(controls.data))
-
-  # for (c in colnames(colData(all.data))) {
-  #     if (!(c %in% colnames(colData(controls.data)))) {
-  #         colData(controls.data)$new <- as.character(NA)
-  #         colData(controls.data) <- rename(colData(controls.data), c("new"=c))
-  #     }
-  # }
-  #
-  # print(colData(all.data))
-  # print(colData(controls.data))
   if (arraytype == "450k" || arraytype == "overlap") {
     all.data <- combineArrays(all.data, controls.data, outType = "IlluminaHumanMethylation450k")
   } else {
@@ -89,10 +75,10 @@ if (tolower(args$controls) != "none") {
 }
 
 # Query biomart for gene annotations
-write("Querying biomaRt for gene locations...", stdout())
-if (!("genesfile" %in% args)) {
+if (!("genesfile" %in% names(args))) {
   detail_regions <- NULL
 } else {
+  write("Querying biomaRt for gene locations...", stdout())
   gene.list <- read.table(args$genesfile, header = FALSE)
   ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl", host = "grch37.ensembl.org")
   detail_regions <- getBM(attributes = c("hgnc_symbol", "chromosome_name", "start_position",
@@ -131,9 +117,10 @@ if (tolower(args$xy) == "yes") {
 }
 
 # Ignore highly polymorphic regions of genome
-if (!("ignorefile" %in% args)) {
+if (!("ignorefile" %in% names(args))) {
   ignore_regions <- NULL
 } else if (endsWith(args$ignorefile, ".bed")) {
+  write("Loading regions to exclude...", stdout())
   ignore_regions <- args$ignorefile
 } else {
   write(paste("Ignore regions value, '", args$ignorefile, "' not recognized.",
@@ -166,7 +153,7 @@ cnv.analyze.plot <- function(sample, controls.names, cnv.data, anno) {
   cnv.analysis <- CNV.bin(cnv.analysis)
   cnv.analysis <- CNV.detail(cnv.analysis)
   cnv.analysis <- CNV.segment(cnv.analysis)
-
+  CNV.detail(cnv.analysis)
   # Open file to write
   write(paste(sample, " - plotting", sep = ""), stdout())
   plot.filename <- paste(sample, ".cnvPlots.pdf", sep = "")
