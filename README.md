@@ -1,1 +1,2 @@
 # conumee_cnv_analysis_module
+Deprecated. See methylation_cnv_analysis_module.
